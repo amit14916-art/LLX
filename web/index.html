@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLX - Agentic Workspace</title>
+    <!-- Include Outfit or Inter Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-obsidian">
+    <!-- Top Nav / Window Controls -->
+    <header class="app-header">
+        <div class="logo" id="logo-home-btn" title="Go to Welcome Home Screen">
+            <span class="icon">⚡</span>
+            <span class="text">LLX <span class="accent">IDE</span></span>
+        </div>
+        <div class="workspace-info">
+            <span class="badge">Workspace</span>
+            <span id="current-workspace-path">Loading workspace...</span>
+        </div>
+        <!-- Theme Switcher -->
+        <div class="theme-switcher">
+            <label for="theme-select">🎨 Theme:</label>
+            <select id="theme-select">
+                <option value="theme-obsidian">Obsidian Dark</option>
+                <option value="theme-dracula">Dracula</option>
+                <option value="theme-monokai">Monokai</option>
+            </select>
+        </div>
+        <div class="status-indicator">
+            <span class="status-dot green"></span>
+            <span class="status-text">Backend Connected</span>
+        </div>
+    </header>
+
+    <!-- Main Editor Layout -->
+    <main class="app-layout">
+        <!-- Left Sidebar: Files -->
+        <aside class="sidebar-files">
+            <div class="panel-header">
+                <h3>Explorer <span class="hotkey-tip">Ctrl+P</span></h3>
+                <button class="btn-refresh" id="refresh-files" title="Refresh file tree">🔄</button>
+            </div>
+            <div class="file-list" id="file-tree">
+                <!-- Dynamically loaded files -->
+                <div class="loading-spinner">Loading workspace files...</div>
+            </div>
+        </aside>
+
+        <!-- Center Pane: Tabbed Editor & Collapsible Terminal -->
+        <section class="editor-container">
+            <div class="editor-tabs" id="editor-tabs">
+                <!-- Dynamically added tabs -->
+                <div class="tab active" id="default-tab">🏠 Welcome</div>
+            </div>
+            
+            <div class="editor-workspace">
+                <div class="line-numbers" id="line-numbers" style="display: none;">
+                    <!-- Javascript will generate numbers -->
+                </div>
+                
+                <!-- Inline AI Input Overlay (Ctrl+K) -->
+                <div class="inline-ai-container" id="inline-ai-overlay" style="display: none;">
+                    <div class="inline-ai-input-row">
+                        <span class="inline-ai-prompt-icon">🤖 Inline AI (Ctrl+K)</span>
+                        <input type="text" id="inline-ai-input" placeholder="Ask AI to generate or edit code here... (Enter to generate, Esc to close)">
+                    </div>
+                </div>
+
+                <!-- Textarea Editor for Files (Hidden on Welcome Dashboard) -->
+                <textarea class="editor-textarea" id="editor-text" spellcheck="false" style="display: none;" placeholder="Select a file from the explorer or press Ctrl+P to begin editing..."></textarea>
+
+                <!-- Welcome Dashboard Home Screen -->
+                <div class="welcome-dashboard" id="welcome-dashboard">
+                    <div class="hero-section">
+                        <h1>Welcome to <span class="gradient-text">LLX Agentic IDE</span></h1>
+                        <p class="subtitle">An autonomous AI-integrated development workspace built for velocity.</p>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <!-- Quick Start Card 1 -->
+                        <div class="dash-card" id="card-new-file">
+                            <div class="card-icon">📄</div>
+                            <h3>New File</h3>
+                            <p>Create a new text or code file in the current active directory.</p>
+                        </div>
+                        
+                        <!-- Quick Start Card 2 -->
+                        <div class="dash-card" id="card-open-folder">
+                            <div class="card-icon">📁</div>
+                            <h3>Open Folder</h3>
+                            <p>Switch your active workspace folder path on your computer.</p>
+                        </div>
+
+                        <!-- Quick Start Card 3 -->
+                        <div class="dash-card" id="card-clone-repo">
+                            <div class="card-icon">🚀</div>
+                            <h3>Clone Git Repository</h3>
+                            <p>Clone a remote repository from GitHub directly into a folder.</p>
+                        </div>
+
+                        <!-- Quick Start Card 4 -->
+                        <div class="dash-card" id="card-shortcuts">
+                            <div class="card-icon">⌨️</div>
+                            <h3>Shortcuts</h3>
+                            <p>View keyboard shortcuts like Ctrl+P (Search) or Ctrl+K (Inline AI).</p>
+                        </div>
+                    </div>
+
+                    <div class="recent-projects-panel">
+                        <h2>Recent Folders</h2>
+                        <div class="recent-list" id="recent-folders-list">
+                            <div class="recent-item" data-path=".">🏠 Current Project Workspace Root (.)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integrated Terminal Panel -->
+            <div class="terminal-panel" id="terminal-panel">
+                <div class="terminal-header" id="terminal-header">
+                    <span class="terminal-title">💻 Integrated Terminal</span>
+                    <div class="terminal-controls">
+                        <button class="terminal-btn" id="clear-terminal-btn" title="Clear Terminal">🧹</button>
+                        <button class="terminal-btn" id="toggle-terminal-btn" title="Collapse/Expand Terminal">➖</button>
+                    </div>
+                </div>
+                <div class="terminal-body" id="terminal-body">
+                    <div class="terminal-output" id="terminal-output">Welcome to LLX Integrated Shell. Run terminal commands directly on your system...</div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">$</span>
+                        <input type="text" class="terminal-input" id="terminal-input" placeholder="Type command (e.g. dir, pytest, python app.py) and press Enter...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-footer">
+                <div class="footer-left">
+                    <span>UTF-8</span>
+                    <span>Python / JavaScript / Text</span>
+                </div>
+                <div class="footer-right">
+                    <button class="btn-save" id="save-file-btn" style="display: none;">💾 Save Changes</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar: AI Assistant (Composer) -->
+        <aside class="sidebar-assistant">
+            <div class="panel-header">
+                <h3>AI Assistant (Composer)</h3>
+            </div>
+            
+            <!-- Logs & Chat messages -->
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message system">
+                        <div class="message-content">
+                            <strong>System:</strong> Welcome to LLX IDE. Write a goal or task in the input box below. The Agentic IDE Kernel will compile a plan, execute code, run tests, and automatically fix errors (self-healing)!
+                        </div>
+                    </div>
+                </div>
+                <div class="agent-progress-box" id="agent-progress-box" style="display: none;">
+                    <div class="progress-header">
+                        <span class="spinner">⚙️</span>
+                        <span class="progress-title">Agent Execution In Progress...</span>
+                    </div>
+                    <div class="progress-log" id="progress-log">
+                        <!-- Streaming logs go here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat input area -->
+            <div class="chat-input-area">
+                <textarea class="chat-input" id="chat-input-text" placeholder="Ask the agent to build something (e.g., 'implement a fibonacci function in math.py')"></textarea>
+                <div class="chat-controls">
+                    <div class="test-command-wrapper">
+                        <label for="test-command-input">Test command:</label>
+                        <input type="text" id="test-command-input" value="pytest" placeholder="e.g. pytest">
+                    </div>
+                    <button class="btn-ask" id="btn-submit-goal">Ask Agent</button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Modals Layout -->
+    
+    <!-- 1. Quick Open / Command Palette Modal -->
+    <div class="modal-overlay" id="quick-open-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="quick-open-input" placeholder="Search files by name..." autocomplete="off">
+            </div>
+            <div class="modal-results" id="quick-open-results">
+                <!-- Dynamically listed file search results -->
+            </div>
+            <div class="modal-footer">
+                <span>↑↓ to navigate</span>
+                <span>Enter to open</span>
+                <span>Esc to close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Open Folder Modal -->
+    <div class="modal-overlay" id="open-folder-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="panel-header">
+                <h3>📁 Open Workspace Folder</h3>
+            </div>
+            <div class="modal-body-padd">
+                <p class="modal-desc">Type the absolute path of the directory you want to open in LLX IDE.</p>
+                <input type="text" id="open-folder-input" class="large-input" placeholder="e.g. C:\Users\user\Projects\my-project">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="btn-folder-cancel">Cancel</button>
+                <button class="btn-modal-confirm" id="btn-folder-confirm">Open Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Clone Repository Modal -->
+    <div class="modal-overlay" id="clone-repo-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="panel-header">
+                <h3>🚀 Clone Github Repository</h3>
+            </div>
+            <div class="modal-body-padd">
+                <p class="modal-desc">Enter the GitHub Repository URL and target folder name.</p>
+                <div class="input-group">
+                    <label for="clone-url-input">Repository URL:</label>
+                    <input type="text" id="clone-url-input" class="large-input" placeholder="e.g. https://github.com/user/repo.git">
+                </div>
+                <div class="input-group" style="margin-top: 12px;">
+                    <label for="clone-dir-input">Destination Folder Name:</label>
+                    <input type="text" id="clone-dir-input" class="large-input" placeholder="e.g. cloned-repo">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="btn-clone-cancel">Cancel</button>
+                <button class="btn-modal-confirm" id="btn-clone-confirm">Clone Repo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. New File Modal -->
+    <div class="modal-overlay" id="new-file-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="panel-header">
+                <h3>📄 Create New File</h3>
+            </div>
+            <div class="modal-body-padd">
+                <p class="modal-desc">Enter the name of the file to create in your active workspace.</p>
+                <input type="text" id="new-file-input" class="large-input" placeholder="e.g. main.py">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="btn-file-cancel">Cancel</button>
+                <button class="btn-modal-confirm" id="btn-file-confirm">Create File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Keyboard Shortcuts Help Modal -->
+    <div class="modal-overlay" id="shortcuts-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="panel-header">
+                <h3>⌨️ Keyboard Shortcuts Help</h3>
+            </div>
+            <div class="modal-body-padd" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="shortcut-row">
+                    <span class="key-combo">Ctrl + P</span>
+                    <span class="shortcut-desc">Open File Finder / Command Palette</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="key-combo">Ctrl + K</span>
+                    <span class="shortcut-desc">Open Inline AI Assistant inside editor</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="key-combo">Esc</span>
+                    <span class="shortcut-desc">Close any modal or dialog</span>
+                </div>
+                <div class="shortcut-row">
+                    <span class="key-combo">Ctrl + S</span>
+                    <span class="shortcut-desc">Save open file (when editor is active)</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal-confirm" id="btn-shortcuts-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include JavaScript file -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

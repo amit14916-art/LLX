@@ -17,6 +17,10 @@ from kernel.graph import create_agent_graph
 
 app = FastAPI(title="Agentic IDE Kernel API", version="1.0.0")
 
+# Serve static files for Cursor Web IDE
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="web"), name="static")
+
 # Configure CORS to allow local VS Code extension or web interfaces to connect
 app.add_middleware(
     CORSMiddleware,
@@ -340,3 +344,142 @@ async def update_kernel():
         return {"status": "success", "message": "Kernel successfully updated to 1.1.0!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write version update: {e}")
+
+# ----------------------------------------------------
+# Cursor Web IDE Router
+# ----------------------------------------------------
+from fastapi.responses import FileResponse
+
+@app.get("/")
+async def serve_index():
+    """Serves the main Cursor Web IDE frontend page."""
+    index_path = os.path.join("web", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Frontend index.html not found.")
+
+active_workspace_path = os.path.abspath(".")
+
+@app.get("/api/workspace")
+async def get_workspace_api():
+    """Returns the absolute path of the current workspace."""
+    return {"workspace_path": active_workspace_path}
+
+class WorkspaceRequest(BaseModel):
+    path: str
+
+@app.post("/api/workspace")
+async def change_workspace_api(request: WorkspaceRequest):
+    """Changes the active workspace directory."""
+    global active_workspace_path
+    # Allow resolving relative paths from the current directory if needed
+    if request.path == ".":
+        target_path = os.path.abspath(".")
+    else:
+        target_path = os.path.abspath(request.path)
+        
+    if not os.path.exists(target_path):
+        return {"status": "error", "message": f"Directory path does not exist: {target_path}"}
+    if not os.path.isdir(target_path):
+        return {"status": "error", "message": "Path is not a valid directory."}
+    
+    active_workspace_path = target_path
+    return {"status": "success", "workspace_path": active_workspace_path}
+
+class CloneRequest(BaseModel):
+    url: str
+    path: str
+
+@app.post("/api/git/clone")
+async def clone_git_repo_api(request: CloneRequest):
+    """Clones a GitHub repository into a subfolder in the active workspace and switches to it."""
+    global active_workspace_path
+    folder_name = os.path.basename(request.path)
+    target_path = os.path.join(active_workspace_path, folder_name)
+    
+    try:
+        process = subprocess.run(
+            ["git", "clone", request.url, target_path],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        if process.returncode != 0:
+            return {"status": "error", "message": process.stderr or process.stdout or "Unknown git clone error."}
+        
+        active_workspace_path = os.path.abspath(target_path)
+        return {"status": "success", "workspace_path": active_workspace_path}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/files")
+async def list_files_api():
+    """Returns a list of files in the workspace, excluding virtual envs and temp folders."""
+    files_list = []
+    exclude_dirs = {".venv", "node_modules", ".git", ".gemini", ".lancedb", "__pycache__", "web"}
+    
+    for root, dirs, files in os.walk(active_workspace_path):
+        # Modify dirs in place to prevent scanning excluded folders
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        for file in files:
+            rel_path = os.path.relpath(os.path.join(root, file), active_workspace_path).replace("\\", "/")
+            files_list.append(rel_path)
+            
+    return sorted(files_list)
+
+@app.get("/api/file")
+async def read_file_api(path: str):
+    """Reads the contents of a file from the workspace."""
+    safe_path = os.path.abspath(os.path.join(active_workspace_path, path))
+    if not safe_path.startswith(os.path.abspath(active_workspace_path)):
+        raise HTTPException(status_code=403, detail="Access denied. Path is outside active workspace.")
+        
+    if not os.path.exists(safe_path) or os.path.isdir(safe_path):
+        raise HTTPException(status_code=404, detail="File not found.")
+        
+    try:
+        with open(safe_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        return {"content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}")
+
+class SaveFileRequest(BaseModel):
+    path: str
+    content: str
+
+@app.post("/api/file")
+async def save_file_api(request: SaveFileRequest):
+    """Saves content to a file in the workspace."""
+    safe_path = os.path.abspath(os.path.join(active_workspace_path, request.path))
+    if not safe_path.startswith(os.path.abspath(active_workspace_path)):
+        raise HTTPException(status_code=403, detail="Access denied. Path is outside active workspace.")
+        
+    try:
+        os.makedirs(os.path.dirname(safe_path), exist_ok=True)
+        with open(safe_path, "w", encoding="utf-8") as f:
+            f.write(request.content)
+        return {"status": "success", "message": "File saved successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write file: {e}")
+
+class TerminalRequest(BaseModel):
+    command: str
+
+@app.post("/api/terminal")
+async def run_terminal_command(request: TerminalRequest):
+    """Executes a command on the local terminal shell in the workspace directory."""
+    try:
+        process = subprocess.run(
+            ["cmd.exe", "/c", request.command],
+            cwd=active_workspace_path,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        output = process.stdout + process.stderr
+        return {"status": "success", "output": output}
+    except subprocess.TimeoutExpired:
+        return {"status": "success", "output": "Command timed out after 30 seconds."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
