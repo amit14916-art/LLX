@@ -32,6 +32,26 @@
           "name": "IDE Kernel Controller"
         }
       ]
+    },
+    "configuration": {
+      "title": "Agentic IDE Settings",
+      "properties": {
+        "agenticIde.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key for Kernel executions."
+        },
+        "agenticIde.modelPreference": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "Selected model preference (e.g. gpt-4o-mini, claude-3-5-sonnet-latest, mock)."
+        },
+        "agenticIde.serverPort": {
+          "type": "integer",
+          "default": 8000,
+          "description": "Local server port for FastAPI backend."
+        }
+      }
     }
   },
   "scripts": {

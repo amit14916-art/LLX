@@ -262,6 +262,10 @@ export class AgenticIdeWebviewProvider implements vscode.WebviewViewProvider {
     
     <!-- Tab 1: Agent Controller -->
     <div id="controller-tab" class="tab-content active">
+        <div id="update-banner" style="background-color: var(--vscode-statusBarItem-warningBackground, #c97018); color: white; padding: 6px 10px; border-radius: 4px; margin-bottom: 10px; display: none; justify-content: space-between; align-items: center; font-size: 11px;">
+            <span id="update-banner-text">Update available (v1.1.0)</span>
+            <button id="update-btn" style="width: auto; margin-top: 0; padding: 3px 8px; background-color: var(--vscode-button-background); color: var(--vscode-button-foreground); font-size: 9px; cursor: pointer; border: none; font-weight: bold; border-radius: 2px;">Update Now</button>
+        </div>
         <h3>Define Your Goal</h3>
         <textarea id="goal-input" placeholder="e.g. Build addition function in calc.py and verify it passes test_calc.py"></textarea>
         
@@ -322,6 +326,9 @@ export class AgenticIdeWebviewProvider implements vscode.WebviewViewProvider {
         const goalInput = document.getElementById('goal-input');
         const runBtn = document.getElementById('run-btn');
         const logWindow = document.getElementById('log-window');
+        const updateBanner = document.getElementById('update-banner');
+        const updateBannerText = document.getElementById('update-banner-text');
+        const updateBtn = document.getElementById('update-btn');
         
         const metricCost = document.getElementById('metric-cost');
         const metricCommits = document.getElementById('metric-commits');
@@ -584,6 +591,47 @@ export class AgenticIdeWebviewProvider implements vscode.WebviewViewProvider {
                 runBtn.disabled = false;
             }
         }
+
+        // Check for self-updates
+        async function checkForUpdates() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/version');
+                if (response.status === 200) {
+                    const data = await response.json();
+                    if (data.update_available) {
+                        updateBanner.style.display = 'flex';
+                        updateBannerText.innerText = 'New Update Available (v' + data.latest_version + ')';
+                    } else {
+                        updateBanner.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.log('Update server offline.');
+            }
+        }
+        
+        // Check 3 seconds after loading, then periodically
+        setTimeout(checkForUpdates, 3000);
+
+        // Handle update click
+        updateBtn.addEventListener('click', async () => {
+            updateBtn.disabled = true;
+            updateBtn.innerText = 'Updating...';
+            try {
+                const response = await fetch('http://127.0.0.1:8000/update', { method: 'POST' });
+                if (response.status === 200) {
+                    const data = await response.json();
+                    vscode.postMessage({ command: 'showInfo', text: data.message });
+                    updateBanner.style.display = 'none';
+                } else {
+                    throw new Error('Failed to apply update');
+                }
+            } catch (err) {
+                vscode.postMessage({ command: 'showError', text: 'Error applying update: ' + err.message });
+                updateBtn.disabled = false;
+                updateBtn.innerText = 'Update Now';
+            }
+        });
     </script>
 </body>
 </html>`;

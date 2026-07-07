@@ -6,6 +6,7 @@ from kernel.models import Task
 from kernel.state import AgentState
 from kernel.retriever import ContextRetriever
 from kernel.dependency_mapper import get_dependency_graph
+from kernel.tools import ToolRegistry
 from kernel.utils import log_agent
 
 class PlanOutput(BaseModel):
@@ -76,12 +77,26 @@ def create_planner_node(llm: BaseChatModel):
             dep_str += f"File: {file} -> Imports: {', '.join(deps) if deps else 'None'}\n"
         log_agent(f"Planner Agent: Dependency graph built ({len(dep_graph)} files mapped).", config)
 
-        # 3. Inject context into system prompt
+        # 3. Discover dynamic skill schemas
+        registry = ToolRegistry(workspace_path)
+        skills_schemas = registry.get_skills_schemas()
+        
+        skills_str = ""
+        if skills_schemas:
+            skills_str += "=== Dynamically Available Project Skills ===\n"
+            for schema in skills_schemas:
+                skills_str += f"- Skill Name: {schema['name']}\n"
+                skills_str += f"  Description: {schema['description']}\n"
+                skills_str += f"  Parameters/Schema: {schema['parameters']}\n\n"
+            log_agent(f"Planner Agent: Successfully registered {len(skills_schemas)} dynamic skills for discovery.", config)
+
+        # 4. Inject context into system prompt
         prompt = (
             f"You are the Strategist Planner for an autonomous agentic IDE kernel.\n"
             f"Your current goal is: '{goal}'\n\n"
             f"{context_str}\n"
             f"{dep_str}\n"
+            f"{skills_str}\n"
             f"Break down this goal into a sequential list of technical tasks. "
             f"Generate a clear, execution-ready sequence. Each task must have a unique, short ID (e.g. T1, T2) "
             f"and start in the 'pending' status."

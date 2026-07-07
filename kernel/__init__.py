@@ -9,6 +9,7 @@ from kernel.utils import log_agent
 from kernel.retriever import ContextRetriever
 from kernel.dependency_mapper import get_dependency_graph
 from kernel.telemetry import log_telemetry
+from kernel.skills import BaseSkill
 
 __all__ = [
     "Task",
@@ -31,4 +32,5 @@ __all__ = [
     "ContextRetriever",
     "get_dependency_graph",
     "log_telemetry",
+    "BaseSkill",
 ]

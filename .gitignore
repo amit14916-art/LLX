@@ -2,3 +2,9 @@
 .lancedb/
 __pycache__/
 *.log
+*.vsix
+extension/node_modules/
+extension/out/
+extension/kernel/
+extension/skills/
+telemetry_logs.jsonl

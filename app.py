@@ -306,3 +306,37 @@ async def telemetry_endpoint(websocket: WebSocket):
         telemetry_manager.disconnect(websocket)
     except Exception:
         telemetry_manager.disconnect(websocket)
+
+@app.get("/version")
+async def get_version():
+    """Checks the local version.json and returns self-update readiness status."""
+    version_path = os.path.abspath("version.json")
+    local_ver = "1.0.0"
+    if os.path.exists(version_path):
+        try:
+            with open(version_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                local_ver = data.get("version", "1.0.0")
+        except Exception:
+            pass
+            
+    # Mock remote check showing that an update is available (1.1.0) if local is 1.0.0
+    latest_ver = "1.1.0"
+    update_available = (local_ver != latest_ver)
+    
+    return {
+        "local_version": local_ver,
+        "latest_version": latest_ver,
+        "update_available": update_available
+    }
+
+@app.post("/update")
+async def update_kernel():
+    """Triggers the mock self-update check, upgrading local version metadata."""
+    version_path = os.path.abspath("version.json")
+    try:
+        with open(version_path, "w", encoding="utf-8") as f:
+            json.dump({"version": "1.1.0"}, f, indent=2)
+        return {"status": "success", "message": "Kernel successfully updated to 1.1.0!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write version update: {e}")
