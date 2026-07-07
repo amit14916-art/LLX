@@ -132,3 +132,17 @@
 {"node_name": "manager", "timestamp": "2026-07-07T15:02:26.710902", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T03"}
 {"node_name": "tester", "timestamp": "2026-07-07T15:02:26.960525", "tokens_used": 2096, "cost": 0.004192, "success_status": "success", "error_log": "", "task_id": "T03"}
 {"node_name": "manager", "timestamp": "2026-07-07T15:02:27.068989", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": null}
+{"node_name": "planner", "timestamp": "2026-07-07T15:17:03.566776", "tokens_used": 5918, "cost": 0.011836000000000001, "success_status": "success", "error_log": "", "task_count": 3}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:03.681741", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T01"}
+{"node_name": "coder", "timestamp": "2026-07-07T15:17:03.866329", "tokens_used": 2652, "cost": 0.0053040000000000006, "success_status": "success", "error_log": "", "task_id": "T01"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:03.979146", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T01"}
+{"node_name": "tester", "timestamp": "2026-07-07T15:17:04.289176", "tokens_used": 2099, "cost": 0.004198, "success_status": "success", "error_log": "", "task_id": "T01"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:04.398510", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T02"}
+{"node_name": "tester", "timestamp": "2026-07-07T15:17:04.929830", "tokens_used": 2132, "cost": 0.004264, "success_status": "success", "error_log": "", "task_id": "T02"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:05.065263", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T03"}
+{"node_name": "security", "timestamp": "2026-07-07T15:17:07.447042", "tokens_used": 0, "cost": 0.0, "success_status": "failed", "error_log": "Security vulnerabilities detected.", "task_id": "T03"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:07.600753", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T03"}
+{"node_name": "coder", "timestamp": "2026-07-07T15:17:09.917719", "tokens_used": 2647, "cost": 0.005294, "success_status": "success", "error_log": "", "task_id": "T03"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:10.264931", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": "T03"}
+{"node_name": "tester", "timestamp": "2026-07-07T15:17:15.483321", "tokens_used": 2096, "cost": 0.004192, "success_status": "success", "error_log": "", "task_id": "T03"}
+{"node_name": "manager", "timestamp": "2026-07-07T15:17:15.605227", "tokens_used": 0, "cost": 0.0, "success_status": "success", "error_log": "", "current_task_id": null}
