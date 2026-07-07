@@ -1,2 +1,2 @@
 def add(a, b):
-    return a + b  # Corrected implementation
+    return a - b  # Buggy implementation

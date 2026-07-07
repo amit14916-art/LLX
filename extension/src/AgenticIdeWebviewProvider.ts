@@ -549,8 +549,25 @@ export class AgenticIdeWebviewProvider implements vscode.WebviewViewProvider {
                 });
             }
 
-            if (chunk.executor) {
-                appendLog('\\n[Executor] Task execution completed.');
+            if (chunk.manager) {
+                const currentTask = chunk.manager.current_task_id;
+                if (currentTask) {
+                    appendLog('\n[Manager] Coordinating sub-task: [' + currentTask + ']');
+                } else {
+                    appendLog('\n[Manager] Evaluating execution plan status...');
+                }
+            }
+
+            if (chunk.coder) {
+                appendLog('[Coder Worker] Code generation and logic updates applied.', 'tool');
+            }
+
+            if (chunk.tester) {
+                appendLog('[Tester Worker] Test file changes and verification tests complete.', 'success');
+            }
+
+            if (chunk.security) {
+                appendLog('[Security Worker] Codebase vulnerability checks complete.', 'success');
             }
 
             if (chunk.critic) {

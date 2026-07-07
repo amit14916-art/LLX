@@ -92,37 +92,52 @@ class MockStructuredLLM:
         if self.schema.__name__ == "PlanOutput":
             from kernel.planner import PlanOutput
             return PlanOutput(tasks=[
-                Task(id="T01", description="Implement a calculator add function in calc.py and verify it passes test_calc.py", status=TaskStatus.PENDING)
+                Task(id="T01", description="Implement a calculator add function in calc.py", status=TaskStatus.PENDING),
+                Task(id="T02", description="Write and run unit tests for the calculator add function in test_calc.py", status=TaskStatus.PENDING),
+                Task(id="T03", description="Run a codebase security scanning validation", status=TaskStatus.PENDING)
             ])
         raise ValueError(f"Mock model does not support schema: {self.schema.__name__}")
 
 class MockLLM(BaseChatModel):
     """Fallback Mock ChatModel to run backend out-of-the-box."""
     def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, **kwargs) -> ChatResult:
-        is_success = False
-        for msg in reversed(messages):
-            if hasattr(msg, "tool_call_id") and getattr(msg, "tool_call_id") == "call_fix_999":
-                is_success = True
-                break
-            if isinstance(msg, dict) and msg.get("tool_call_id") == "call_fix_999":
-                is_success = True
-                break
-            if "Test passed successfully!" in getattr(msg, "content", ""):
-                is_success = True
-                break
+        # Determine which agent is calling the mock LLM
+        is_tester = False
+        is_coder = False
+        
+        for msg in messages:
+            content_str = str(getattr(msg, "content", ""))
+            if "Tester Worker" in content_str:
+                is_tester = True
+            elif "Coder Worker" in content_str:
+                is_coder = True
                 
-        if is_success:
-            return ChatResult(generations=[ChatGeneration(message=AIMessage(
-                content="The calculator implementation was successfully corrected and all tests are passing. The task is fully complete."
-            ))])
+        # 1. Tester Agent tool output
+        if is_tester:
+            tool_calls = [{
+                "name": "write_file",
+                "args": {
+                    "path": "test_calc.py",
+                    "content": "from calc import add\ndef test_add():\n    assert add(2, 3) == 5\n"
+                },
+                "id": "call_write_test"
+            }]
+            ai_msg = AIMessage(
+                content="I will write the unit tests for add function in test_calc.py.",
+                tool_calls=tool_calls
+            )
+            return ChatResult(generations=[ChatGeneration(message=ai_msg)])
             
+        # 2. Coder Agent tool output
         is_healing_attempt = False
         for msg in reversed(messages):
-            if "Exit Code" in str(getattr(msg, "content", "")):
+            content_str = str(getattr(msg, "content", ""))
+            if "Exit Code" in content_str or "failed" in content_str:
                 is_healing_attempt = True
                 break
                 
         if is_healing_attempt:
+            # Correct the bug
             tool_calls = [{
                 "name": "write_file",
                 "args": {
@@ -132,20 +147,21 @@ class MockLLM(BaseChatModel):
                 "id": "call_fix_999"
             }]
             ai_msg = AIMessage(
-                content="I see the test failed because we used subtraction (-) instead of addition (+). Writing the fix now.",
+                content="I see the tests failed. I will write the corrected addition logic to calc.py.",
                 tool_calls=tool_calls
             )
         else:
+            # Write initial buggy implementation
             tool_calls = [{
                 "name": "write_file",
                 "args": {
                     "path": "calc.py",
-                    "content": "def add(a, b):\n    return a - b  # Buggy implementation (subtraction instead of addition)\n"
+                    "content": "def add(a, b):\n    return a - b  # Buggy implementation\n"
                 },
                 "id": "call_write_888"
             }]
             ai_msg = AIMessage(
-                content="I will write the calc.py file with the add function logic.",
+                content="I will write the initial calc.py addition function.",
                 tool_calls=tool_calls
             )
             
@@ -251,6 +267,10 @@ async def execute_goal(request: GoalRequest):
                     node_data["git_branch"] = val["git_branch"]
                 if "current_lint_score" in val:
                     node_data["current_lint_score"] = val["current_lint_score"]
+                if "critic_status" in val:
+                    node_data["critic_status"] = val["critic_status"]
+                if "current_task_id" in val:
+                    node_data["current_task_id"] = val["current_task_id"]
                 serializable_chunk[node] = node_data
                 
             yield f"data: {json.dumps(serializable_chunk)}\n\n"

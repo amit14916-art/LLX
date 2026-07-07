@@ -2,7 +2,8 @@ from kernel.models import Task, TaskStatus, CodebaseContext, TestResults, ErrorE
 from kernel.state import AgentState, merge_tasks, append_errors
 from kernel.tools import ToolRegistry
 from kernel.planner import planner_agent, create_planner_node
-from kernel.executor import executor_agent
+from kernel.manager import manager_agent
+from kernel.workers import coder_node, tester_node, security_node
 from kernel.graph import create_agent_graph
 from kernel.utils import log_agent
 from kernel.retriever import ContextRetriever
@@ -21,7 +22,10 @@ __all__ = [
     "ToolRegistry",
     "planner_agent",
     "create_planner_node",
-    "executor_agent",
+    "manager_agent",
+    "coder_node",
+    "tester_node",
+    "security_node",
     "create_agent_graph",
     "log_agent",
     "ContextRetriever",

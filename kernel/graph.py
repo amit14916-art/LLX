@@ -1,27 +1,58 @@
 from langgraph.graph import StateGraph, START, END
 from kernel.state import AgentState
 from kernel.planner import planner_agent
-from kernel.executor import executor_agent
+from kernel.manager import manager_agent
+from kernel.workers import coder_node, tester_node, security_node
 from kernel.critic import critic_agent
-from kernel.models import TaskStatus
 
-def should_continue(state: AgentState) -> str:
+def route_manager_tasks(state: AgentState) -> str:
     """
-    Determines next state after executor run.
-    - If all tasks are completed, transitions to 'critic' for static analysis.
-    - If there are failing tasks or errors, loops back to 'executor'.
+    Decides where to route the workflow next after the manager runs.
+    - If current_task_id is None, routes to 'critic' for static analysis check.
+    - If current_task_id is set:
+      - If last_active_worker is 'coder' -> route to 'tester' to verify.
+      - If last_active_worker is 'tester' and task.error_message is set -> route to 'coder' to self-heal.
+      - If last_active_worker is 'security' and task.error_message is set -> route to 'coder' to fix.
+      - If last_active_worker is None (new task assigned):
+        - If task description matches test keywords -> route to 'tester'.
+        - If task description matches security keywords -> route to 'security'.
+        - Otherwise -> route to 'coder'.
     """
-    plan = state.get("plan", [])
-    if plan and all(t.status == TaskStatus.COMPLETED for t in plan):
+    current_task_id = state.get("current_task_id")
+    if not current_task_id:
         return "critic"
         
-    return "executor"
+    plan = state.get("plan", [])
+    task = next((t for t in plan if t.id == current_task_id), None)
+    if not task:
+        return "critic"
+        
+    last_active_worker = state.get("last_active_worker")
+    
+    if last_active_worker == "coder":
+        return "tester"
+        
+    if last_active_worker == "tester" and task.error_message:
+        return "coder"
+        
+    if last_active_worker == "security" and task.error_message:
+        return "coder"
+        
+    # Classify a fresh task run
+    desc = task.description.lower()
+    if "test" in desc or "verify" in desc or "assert" in desc:
+        return "tester"
+    elif "security" in desc or "vulnerability" in desc or "scan" in desc:
+        return "security"
+        
+    return "coder"
 
-def should_critic_continue(state: AgentState) -> str:
+def route_critic_tasks(state: AgentState) -> str:
     """
-    Determines next state after critic peer review.
+    Determines next state after critic review.
     - If code passes linter check (score = 10.0), transitions to END.
-    - If code fails linter check (score < 10.0), loops back to 'executor' for style clean-up.
+    - If code fails linter check (score < 10.0), routes back to 'manager'
+      to delegate the cleanup task to the Coder.
     - Exits after 3 failed linter cleanup rounds to prevent infinite routing.
     """
     lint_score = state.get("current_lint_score")
@@ -34,39 +65,50 @@ def should_critic_continue(state: AgentState) -> str:
         print("[Critic] Peer review: Max style cleanup iterations reached. Exiting graph.")
         return END
         
-    return "executor"
+    return "manager"
 
 def create_agent_graph() -> StateGraph:
     """
-    Creates and wires together the autonomous planner, coder, and critic agents.
+    Creates and wires together the autonomous planner, manager coordinator,
+    and specialized workers (coder, tester, security) and final critic.
     """
     workflow = StateGraph(AgentState)
     
     # Register graph nodes
     workflow.add_node("planner", planner_agent)
-    workflow.add_node("executor", executor_agent)
+    workflow.add_node("manager", manager_agent)
+    workflow.add_node("coder", coder_node)
+    workflow.add_node("tester", tester_node)
+    workflow.add_node("security", security_node)
     workflow.add_node("critic", critic_agent)
     
-    # Define start entry edge
+    # Define execution cycles
     workflow.add_edge(START, "planner")
-    workflow.add_edge("planner", "executor")
+    workflow.add_edge("planner", "manager")
     
-    # Configure executor conditional branching
+    # Worker returns back to coordinator manager
+    workflow.add_edge("coder", "manager")
+    workflow.add_edge("tester", "manager")
+    workflow.add_edge("security", "manager")
+    
+    # Configure manager conditional routing
     workflow.add_conditional_edges(
-        "executor",
-        should_continue,
+        "manager",
+        route_manager_tasks,
         {
-            "critic": "critic",
-            "executor": "executor"
+            "coder": "coder",
+            "tester": "tester",
+            "security": "security",
+            "critic": "critic"
         }
     )
     
-    # Configure critic conditional branching
+    # Configure critic conditional routing
     workflow.add_conditional_edges(
         "critic",
-        should_critic_continue,
+        route_critic_tasks,
         {
-            "executor": "executor",
+            "manager": "manager",
             END: END
         }
     )

@@ -42,3 +42,5 @@ class AgentState(TypedDict):
     git_branch: Optional[str]
     current_lint_score: Optional[float]
     critic_status: Optional[str]
+    current_task_id: Optional[str]
+    last_active_worker: Optional[str]
