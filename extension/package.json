@@ -1,0 +1,46 @@
+{
+  "name": "agentic-ide",
+  "displayName": "Agentic IDE",
+  "description": "Autonomous Agentic IDE Kernel Sidebar Controller",
+  "version": "1.0.0",
+  "publisher": "google-deepmind",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:agentic-ide.sidebar"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentic-ide-sidebar-container",
+          "title": "Agentic IDE",
+          "icon": "$(terminal)"
+        }
+      ]
+    },
+    "views": {
+      "agentic-ide-sidebar-container": [
+        {
+          "type": "webview",
+          "id": "agentic-ide.sidebar",
+          "name": "IDE Kernel Controller"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "typescript": "^4.9.5"
+  }
+}
