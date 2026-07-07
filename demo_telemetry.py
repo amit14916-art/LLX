@@ -9,16 +9,16 @@ import subprocess
 async def listen_metrics():
     """Listens to WebSocket metrics and validates JSON structure."""
     uri = "ws://127.0.0.1:8000/metrics"
-    await asyncio.sleep(2.0)
+    await asyncio.sleep(4.0)
     
     websocket = None
-    for attempt in range(5):
+    for attempt in range(10):
         try:
             websocket = await websockets.connect(uri)
             print(f"[Client] Connected to WebSocket metrics stream on attempt {attempt+1}.")
             break
         except Exception:
-            print(f"[Client] Connection attempt {attempt+1}/5 failed. Retrying...")
+            print(f"[Client] Connection attempt {attempt+1}/10 failed. Retrying...")
             await asyncio.sleep(1.0)
             
     if not websocket:
@@ -65,16 +65,15 @@ async def run_execute():
         "test_command": "python test_calc.py"
     }
     
-    await asyncio.sleep(2.0)
+    await asyncio.sleep(6.0)
     
     client = httpx.AsyncClient(timeout=30)
     connected = False
     
-    # Try connecting to server up to 8 times
-    for attempt in range(8):
+    # Try connecting to server up to 12 times
+    for attempt in range(12):
         try:
-            # Quick health check or get response
-            print(f"[Client] Connecting to FastAPI execute endpoint (attempt {attempt+1}/8)...")
+            print(f"[Client] Connecting to FastAPI execute endpoint (attempt {attempt+1}/12)...")
             async with client.stream("POST", url, json=payload) as response:
                 print(f"[Client] Connected! HTTP Execute Status: {response.status_code}")
                 connected = True
@@ -87,7 +86,7 @@ async def run_execute():
             
     await client.aclose()
     if not connected:
-        print("[Client] ERROR: Failed to execute goal after 8 attempts.")
+        print("[Client] ERROR: Failed to execute goal after 12 attempts.")
 
 async def main():
     print("[Client] Starting E2E Telemetry pipeline validation...")
