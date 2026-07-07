@@ -89,6 +89,23 @@ def create_planner_node(llm: BaseChatModel):
 
         # Invoke model with structured output
         plan_res: PlanOutput = structured_llm.invoke(prompt, config)
+        
+        # Calculate tokens and log telemetry
+        in_tokens = len(prompt) // 4
+        out_tokens = sum(len(t.description) for t in plan_res.tasks) // 4
+        total_tokens = max(100, in_tokens + out_tokens)
+        
+        from kernel.telemetry import log_telemetry
+        log_telemetry(
+            node_name="planner",
+            tokens_used=total_tokens,
+            success=True,
+            error_msg=None,
+            workspace_path=workspace_path,
+            config=config,
+            task_count=len(plan_res.tasks)
+        )
+        
         return {
             "plan": plan_res.tasks,
             "codebase_context": codebase_context,

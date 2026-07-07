@@ -41,11 +41,7 @@ def executor_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     """
     LangGraph executor node. Iterates through plan tasks, writes code,
     executes tests, and triggers a self-healing loop on test failures.
-    
-    Configuration options (configurable dictionary):
-    - llm: LangChain ChatModel (Required)
-    - test_command: Shell command to run tests (Default: 'pytest')
-    - max_retries: Number of attempts to heal failing code (Default: 3)
+    Tracks token counts and reports Node Telemetry on completion.
     """
     configurable = config.get("configurable", {}) if config else {}
     llm = configurable.get("llm")
@@ -57,6 +53,9 @@ def executor_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
         
     test_command = configurable.get("test_command", "pytest")
     max_retries = configurable.get("max_retries", 3)
+    
+    # Initialize token accounting
+    node_tokens = 0
     
     # Initialize workspace-tied registry and LangChain tools
     workspace_path = state["codebase_context"].workspace_path
@@ -98,12 +97,20 @@ def executor_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             }
         ]
         
-        # Execution loop for a single task (max 10 steps to prevent agent loops)
         task_success = True
         test_passed = False
         
+        # Execution loop for a single task
         for step in range(10):
+            # Calculate estimated input tokens before call
+            in_tok = sum(len(str(m)) for m in messages) // 4
+            
             response = llm_with_tools.invoke(messages)
+            
+            # Count output tokens
+            out_tok = (len(str(response.content)) + len(str(response.tool_calls))) // 4
+            node_tokens += max(10, in_tok + out_tok)
+            
             messages.append(response)
             
             # If the model didn't call any tools, it assumes it is finished
@@ -161,7 +168,11 @@ def executor_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
                             )
                             messages.append({"role": "user", "content": healing_prompt})
                             
+                            in_tok = sum(len(str(m)) for m in messages) // 4
                             heal_resp = llm_with_tools.invoke(messages)
+                            out_tok = (len(str(heal_resp.content)) + len(str(heal_resp.tool_calls))) // 4
+                            node_tokens += max(10, in_tok + out_tok)
+                            
                             messages.append(heal_resp)
                             
                             if heal_resp.tool_calls:
@@ -234,5 +245,19 @@ def executor_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             task.status = TaskStatus.FAILED
             task.error_message = "Test suite continues to fail after all self-healing attempts."
             break
+
+    # Emit node telemetry data
+    from kernel.telemetry import log_telemetry
+    node_success = all(t.status == TaskStatus.COMPLETED for t in plan)
+    node_error = error_log[-1].message if (error_log and not node_success) else None
+    
+    log_telemetry(
+        node_name="executor",
+        tokens_used=node_tokens,
+        success=node_success,
+        error_msg=node_error,
+        workspace_path=workspace_path,
+        config=config
+    )
 
     return {"plan": plan, "error_log": error_log}

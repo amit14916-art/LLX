@@ -126,6 +126,18 @@ def critic_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
             )
             plan.append(new_task)
             
+        # Log telemetry on rejection
+        from kernel.telemetry import log_telemetry
+        log_telemetry(
+            node_name="critic",
+            tokens_used=0,
+            success=False,
+            error_msg=linter_output,
+            workspace_path=workspace_path,
+            config=config,
+            lint_score=score
+        )
+        
         return {
             "error_log": error_log,
             "current_lint_score": score,
@@ -141,6 +153,19 @@ def critic_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
         
         commit_msg = commit_changes(workspace_path, state["goal"], llm)
         log_agent(f"Critic: Created commit: '{commit_msg}'", config)
+        
+        # Log telemetry on success (estimated 200 tokens for commit generator LLM call)
+        from kernel.telemetry import log_telemetry
+        log_telemetry(
+            node_name="critic",
+            tokens_used=200,
+            success=True,
+            error_msg=None,
+            workspace_path=workspace_path,
+            config=config,
+            lint_score=10.0,
+            commit_message=commit_msg
+        )
         
         return {
             "current_lint_score": 10.0,

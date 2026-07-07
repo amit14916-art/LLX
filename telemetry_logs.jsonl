@@ -1,0 +1,2 @@
+{"node_name": "planner", "timestamp": "2026-07-07T14:43:54.996257", "tokens_used": 5791, "cost": 0.011582, "success_status": "success", "error_log": "", "task_count": 1}
+{"node_name": "executor", "timestamp": "2026-07-07T14:43:55.844893", "tokens_used": 1231, "cost": 0.002462, "success_status": "success", "error_log": ""}

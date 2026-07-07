@@ -60,6 +60,27 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+class TelemetryManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, event: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(event)
+            except Exception:
+                pass
+
+telemetry_manager = TelemetryManager()
+
 # ----------------------------------------------------
 # Mock LLM fallback for local testability without API keys
 # ----------------------------------------------------
@@ -196,13 +217,19 @@ async def execute_goal(request: GoalRequest):
         if main_loop:
             asyncio.run_coroutine_threadsafe(manager.broadcast(msg), main_loop)
             
+    # Define WebSocket broadcast callback for telemetry metrics
+    def telemetry_callback(event: dict):
+        if main_loop:
+            asyncio.run_coroutine_threadsafe(telemetry_manager.broadcast(event), main_loop)
+            
     # Setup configuration
     config = {
         "configurable": {
             "llm": get_chat_model(),
             "test_command": request.test_command,
             "max_retries": 3,
-            "log_callback": log_callback
+            "log_callback": log_callback,
+            "telemetry_callback": telemetry_callback
         }
     }
     
@@ -245,3 +272,17 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
     except Exception:
         manager.disconnect(websocket)
+
+@app.websocket("/metrics")
+async def telemetry_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint to stream real-time JSON telemetry metrics back to client.
+    """
+    await telemetry_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        telemetry_manager.disconnect(websocket)
+    except Exception:
+        telemetry_manager.disconnect(websocket)
