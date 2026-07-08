@@ -52,7 +52,7 @@ def get_dependency_graph(workspace_path: str) -> Dict[str, List[str]]:
     Resolves imports against workspace files to build a local file dependency graph.
     """
     workspace_path = os.path.abspath(workspace_path)
-    exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini"}
+    exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", "node_modules", ".lancedb"}
     graph = {}
     
     # First, list all code files in the workspace (with relative paths)
