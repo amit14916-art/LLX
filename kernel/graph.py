@@ -40,13 +40,11 @@ def route_manager_tasks(state: AgentState) -> str:
         
     # Classify a fresh task run
     desc = task.description.lower()
-    if (
-        "test" in desc 
-        or "verify" in desc 
-        or "assert" in desc 
-        or "security" in desc 
-        or "vulnerability" in desc 
-        or "scan" in desc
+    if any(k in desc for k in ("implement", "build", "write", "create", "add", "fix", "solve")):
+        return "coder"
+    elif any(
+        k in desc 
+        for k in ("test", "verify", "assert", "security", "vulnerability", "scan")
     ):
         return ["tester", "security"]
         

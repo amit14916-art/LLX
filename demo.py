@@ -38,6 +38,40 @@ class MockLLM(BaseChatModel):
     """A mock LangChain ChatModel to facilitate local demo execution without external keys."""
     
     def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, **kwargs) -> ChatResult:
+        # Check if this is the Tester Worker
+        is_tester = False
+        for msg in messages:
+            content_str = ""
+            if isinstance(msg, dict):
+                content_str = str(msg.get("content", ""))
+            else:
+                content_str = str(getattr(msg, "content", ""))
+            if "Tester Worker" in content_str:
+                is_tester = True
+                break
+
+        if is_tester:
+            tool_calls = [{
+                "name": "write_file",
+                "args": {
+                    "path": "test_calc.py",
+                    "content": (
+                        "import calc\n"
+                        "def test_add():\n"
+                        "    assert calc.add(2, 3) == 5\n"
+                        "if __name__ == '__main__':\n"
+                        "    test_add()\n"
+                        "    print('Test passed successfully!')\n"
+                    )
+                },
+                "id": "call_test_777"
+            }]
+            ai_msg = AIMessage(
+                content="I will write the test_calc.py unit test file to verify the calculator addition logic.",
+                tool_calls=tool_calls
+            )
+            return ChatResult(generations=[ChatGeneration(message=ai_msg)])
+
         # Check if the dialogue history already contains our fix execution confirmation ("call_fix_999")
         is_success = False
         for msg in reversed(messages):
