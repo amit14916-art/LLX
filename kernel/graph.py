@@ -30,7 +30,7 @@ def route_manager_tasks(state: AgentState) -> str:
     last_active_worker = state.get("last_active_worker")
     
     if last_active_worker == "coder":
-        return "tester"
+        return ["tester", "security"]
         
     if last_active_worker == "tester" and task.error_message:
         return "coder"

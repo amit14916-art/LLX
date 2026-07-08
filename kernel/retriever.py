@@ -1,4 +1,5 @@
 import os
+import ast
 import hashlib
 from typing import List, Dict, Any, Optional
 import pyarrow as pa
@@ -69,24 +70,81 @@ class ContextRetriever:
         """
         Chunks the file at the given relative workspace path, 
         generates embeddings, and stores/updates the entries in LanceDB.
+        Safeguards: Skips files larger than 1MB or containing binary null bytes.
         """
         full_path = os.path.join(self.workspace_path, rel_filepath)
         if not os.path.exists(full_path) or os.path.isdir(full_path):
             return
             
+        # 1. Size safeguard: Skip files larger than 1MB
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
+            if os.path.getsize(full_path) > 1024 * 1024:
+                print(f"[Retriever] Skipping {rel_filepath} (File size exceeds 1MB limit)")
+                return
+        except Exception:
+            return
+
+        # 2. Binary safeguard: Skip files containing null bytes
+        try:
+            with open(full_path, "rb") as f:
+                header = f.read(1024)
+                if b"\x00" in header:
+                    print(f"[Retriever] Skipping binary file: {rel_filepath}")
+                    return
+        except Exception:
+            return
+
+        # 3. Read content
+        try:
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
         except Exception as e:
             print(f"[Retriever] Error reading file {rel_filepath}: {e}")
             return
 
-        # Chunk the content by splitting into 500-word blocks
-        words = content.split()
-        chunk_size = 500
+        # 4. Chunk content using AST if it's a Python file
         chunks = []
-        for i in range(0, len(words), chunk_size):
-            chunks.append(" ".join(words[i:i + chunk_size]))
+        ext = os.path.splitext(rel_filepath)[1].lower()
+        if ext == ".py":
+            try:
+                tree = ast.parse(content)
+                lines = content.splitlines()
+                global_lines = []
+                last_end = 0
+                
+                for node in tree.body:
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        # If there were global statements before this definition, chunk them
+                        start_line = node.lineno - 1
+                        if start_line > last_end:
+                            global_chunk = "\n".join(lines[last_end:start_line]).strip()
+                            if global_chunk:
+                                chunks.append(global_chunk)
+                        
+                        # Chunk the function/class itself
+                        end_line = getattr(node, "end_lineno", len(lines))
+                        chunk_content = "\n".join(lines[start_line:end_line]).strip()
+                        if chunk_content:
+                            chunks.append(chunk_content)
+                        last_end = end_line
+                
+                # Append any remaining module-level code
+                if last_end < len(lines):
+                    remaining_chunk = "\n".join(lines[last_end:]).strip()
+                    if remaining_chunk:
+                        chunks.append(remaining_chunk)
+                        
+                if not chunks and content.strip():
+                    chunks = [content]
+            except Exception:
+                pass  # Fallback to word-limit chunking on AST parse errors
+        
+        # Fallback to 500-word blocks for non-python files or failed AST parses
+        if not chunks:
+            words = content.split()
+            chunk_size = 500
+            for i in range(0, len(words), chunk_size):
+                chunks.append(" ".join(words[i:i + chunk_size]))
 
         # Delete any existing entries for this file
         escaped_path = rel_filepath.replace('"', '\\"')

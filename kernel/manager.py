@@ -23,31 +23,26 @@ def manager_agent(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
         task = next((t for t in plan if t.id == current_task_id), None)
         if task:
             if last_active_worker == "coder":
-                # Coder just wrote/fixed code. We must route to tester to verify!
-                log_agent(f"[Manager] Coder finished. Routing task [{current_task_id}] to Tester for verification.", config)
+                # Coder just wrote/fixed code. We must route to tester/security to verify!
+                log_agent(f"[Manager] Coder finished. Routing task [{current_task_id}] to Tester and Security concurrently for verification.", config)
                 task.error_message = None # Clear error to allow testing
-            elif last_active_worker == "tester":
-                # Check if the latest error is from this tester execution
-                if error_log and error_log[-1].step == f"tester_node:{current_task_id}":
-                    log_agent(f"[Manager] Tester failed for task [{current_task_id}]. Routing to Coder for healing.", config)
+            elif last_active_worker in ("tester", "security"):
+                # Check if there were any failures in either parallel node for this task run
+                failed_steps = []
+                if error_log:
+                    # Check at most the last 2 entries in the error log since they run concurrently
+                    for err in error_log[-2:]:
+                        if err.step in (f"tester_node:{current_task_id}", f"security_node:{current_task_id}"):
+                            failed_steps.append(err)
+                
+                if failed_steps:
+                    err_msg = " & ".join(e.message for e in failed_steps)
+                    log_agent(f"[Manager] Verification failed for task [{current_task_id}]: {err_msg}. Routing to Coder for healing.", config)
                     task.status = TaskStatus.IN_PROGRESS
-                    task.error_message = error_log[-1].message
+                    task.error_message = err_msg
                 else:
-                    # Tester passed!
-                    log_agent(f"[Manager] Tester passed for task [{current_task_id}]. Task COMPLETED.", config)
-                    task.status = TaskStatus.COMPLETED
-                    task.error_message = None
-                    current_task_id = None # Clear to fetch next task
-                    last_active_worker = None
-            elif last_active_worker == "security":
-                # Check if the latest error is from this security execution
-                if error_log and error_log[-1].step == f"security_node:{current_task_id}":
-                    log_agent(f"[Manager] Security scan failed for task [{current_task_id}]. Routing to Coder to fix.", config)
-                    task.status = TaskStatus.IN_PROGRESS
-                    task.error_message = error_log[-1].message
-                else:
-                    # Security passed!
-                    log_agent(f"[Manager] Security passed for task [{current_task_id}]. Task COMPLETED.", config)
+                    # Both passed!
+                    log_agent(f"[Manager] Verification passed (Tester & Security succeeded) for task [{current_task_id}]. Task COMPLETED.", config)
                     task.status = TaskStatus.COMPLETED
                     task.error_message = None
                     current_task_id = None # Clear to fetch next task
