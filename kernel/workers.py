@@ -50,7 +50,9 @@ def coder_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
         {"role": "system", "content": "You are a specialized Coder Worker. Write clean, correct code implementation files using read_file and write_file tools. Focus purely on writing correct logic as described in the task."},
         {"role": "user", "content": f"Task: {task.description}\nWorkspace: {workspace_path}"}
     ]
-    
+    if task.error_message:
+        messages.append({"role": "user", "content": f"Previous verification failed with the following errors:\n{task.error_message}\nPlease fix the issues and write the correct implementation."})
+        
     coder_tokens = 0
     task_success = True
     error_msg = None
