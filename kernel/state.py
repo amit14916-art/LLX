@@ -29,6 +29,19 @@ def append_errors(left: List[ErrorEntry], right: List[ErrorEntry]) -> List[Error
         right = []
     return left + right
 
+def merge_verified(left: List[str], right: List[str]) -> List[str]:
+    """
+    Reducer function to merge verified worker tags in parallel execution.
+    An empty list update clears the verified list.
+    """
+    if right is None:
+        return left if left is not None else []
+    if not right:
+        return []
+    if left is None:
+        left = []
+    return list(set(left + right))
+
 class AgentState(TypedDict):
     """
     LangGraph state schema for the autonomous agentic IDE kernel.
@@ -44,3 +57,4 @@ class AgentState(TypedDict):
     critic_status: Optional[str]
     current_task_id: Optional[str]
     last_active_worker: Optional[str]
+    verified_by: Annotated[List[str], merge_verified]

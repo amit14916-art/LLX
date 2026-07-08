@@ -89,7 +89,8 @@ def coder_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     
     return {
         "plan": plan,
-        "last_active_worker": "coder"
+        "last_active_worker": "coder",
+        "verified_by": []
     }
 
 # ----------------------------------------------------
@@ -187,7 +188,8 @@ def tester_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     return {
         "error_log": error_log,
         "test_results": None,
-        "last_active_worker": "tester"
+        "last_active_worker": "tester",
+        "verified_by": ["tester"]
     }
 
 # ----------------------------------------------------
@@ -267,5 +269,6 @@ def security_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     
     return {
         "error_log": error_log,
-        "last_active_worker": "security"
+        "last_active_worker": "security",
+        "verified_by": ["security"]
     }

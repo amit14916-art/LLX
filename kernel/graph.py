@@ -67,6 +67,20 @@ def route_critic_tasks(state: AgentState) -> str:
         
     return "manager"
 
+def join_verifier_node(state: AgentState) -> dict:
+    """Join node that aggregates parallel tester and security runs."""
+    return {}
+
+def route_join_verifier(state: AgentState) -> str:
+    """
+    Barrier Router: Routes to manager only when both tester and security have completed.
+    Otherwise, returns END to terminate the current redundant execution branch.
+    """
+    verified = state.get("verified_by", [])
+    if len(verified) >= 2:
+        return "manager"
+    return END
+
 def create_agent_graph() -> StateGraph:
     """
     Creates and wires together the autonomous planner, manager coordinator,
@@ -81,15 +95,28 @@ def create_agent_graph() -> StateGraph:
     workflow.add_node("tester", tester_node)
     workflow.add_node("security", security_node)
     workflow.add_node("critic", critic_agent)
+    workflow.add_node("join_verifier", join_verifier_node)
     
     # Define execution cycles
     workflow.add_edge(START, "planner")
     workflow.add_edge("planner", "manager")
     
-    # Worker returns back to coordinator manager
+    # Coder returns back to coordinator manager
     workflow.add_edge("coder", "manager")
-    workflow.add_edge("tester", "manager")
-    workflow.add_edge("security", "manager")
+    
+    # Tester and Security route to join_verifier to synchronize
+    workflow.add_edge("tester", "join_verifier")
+    workflow.add_edge("security", "join_verifier")
+    
+    # Configure join_verifier barrier routing
+    workflow.add_conditional_edges(
+        "join_verifier",
+        route_join_verifier,
+        {
+            "manager": "manager",
+            END: END
+        }
+    )
     
     # Configure manager conditional routing
     workflow.add_conditional_edges(
