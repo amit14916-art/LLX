@@ -213,7 +213,7 @@ def security_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     log_agent(f"[Security Worker] Performing vulnerability scan on task implementation...", config)
     
     security_violations = []
-    exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb"}
+    exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb", "node_modules"}
     
     # Common vulnerability patterns
     patterns = {
