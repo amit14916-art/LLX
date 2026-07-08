@@ -59,7 +59,12 @@ class MockLLM(BaseChatModel):
         # Check if the dialogue history contains a test failure to trigger healing
         is_healing_attempt = False
         for msg in reversed(messages):
-            if "Exit Code" in str(getattr(msg, "content", "")):
+            content_str = ""
+            if isinstance(msg, dict):
+                content_str = str(msg.get("content", ""))
+            else:
+                content_str = str(getattr(msg, "content", ""))
+            if "Exit Code" in content_str or "failed" in content_str or "vulnerabilities" in content_str:
                 is_healing_attempt = True
                 break
                 
