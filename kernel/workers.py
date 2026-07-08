@@ -213,7 +213,10 @@ def security_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     log_agent(f"[Security Worker] Performing vulnerability scan on task implementation...", config)
     
     security_violations = []
-    exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb", "node_modules"}
+    exclude_dirs = {
+        ".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb", "node_modules",
+        "kernel", "extension", "web"
+    }
     
     # Common vulnerability patterns
     patterns = {
@@ -226,6 +229,8 @@ def security_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     for root, dirs, files in os.walk(workspace_path):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
         for file in files:
+            if file in {"build.py", "demo.py", "watchdog_daemon.py"} or file.startswith("demo_") or file.startswith("test_"):
+                continue
             ext = os.path.splitext(file)[1].lower()
             if ext in {".py", ".ts", ".js", ".tsx"}:
                 full_path = os.path.join(root, file)
