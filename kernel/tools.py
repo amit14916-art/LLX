@@ -213,8 +213,8 @@ class ToolRegistry:
             return f"Error executing shell command: {str(e)}\n[Exit Code: -2]"
 
     def list_files(self) -> List[str]:
-        """Recursively lists all files in the workspace, excluding virtual environment (.venv)."""
-        exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", "kernel.egg-info"}
+        """Recursively lists all files in the workspace, excluding virtual environment (.venv) and node_modules."""
+        exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", "kernel.egg-info", "node_modules"}
         file_list = []
         for root, dirs, files in os.walk(self.workspace_path):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
