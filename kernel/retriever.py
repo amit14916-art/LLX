@@ -112,7 +112,7 @@ class ContextRetriever:
 
     def index_workspace(self):
         """Recursively scans the workspace and indexes py, ts, js, and tsx files."""
-        exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb"}
+        exclude_dirs = {".git", ".venv", "__pycache__", ".ipynb_checkpoints", ".gemini", ".lancedb", "node_modules"}
         for root, dirs, files in os.walk(self.workspace_path):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             for file in files:
@@ -121,6 +121,113 @@ class ContextRetriever:
                     full_path = os.path.join(root, file)
                     rel_path = os.path.relpath(full_path, self.workspace_path).replace("\\", "/")
                     self.index_file(rel_path)
+
+    def sync_workspace(self):
+        """
+        Synchronizes the workspace incrementally using Git commit hashes.
+        If no metadata exists, runs a full indexing pass and records the HEAD commit.
+        If a prior processed commit is saved:
+          1. Identifies the difference between that commit and current HEAD.
+          2. Processes only created/modified/deleted files.
+          3. Updates the saved metadata with the new HEAD.
+        """
+        import json
+        import subprocess
+        
+        metadata_path = os.path.join(self.db_dir, "index_metadata.json")
+        
+        def run_git_cmd(args):
+            try:
+                res = subprocess.run(
+                    args,
+                    cwd=self.workspace_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True
+                )
+                return res.stdout.strip()
+            except Exception:
+                return ""
+        
+        # Get current HEAD commit
+        head = run_git_cmd(["git", "rev-parse", "HEAD"])
+        if not head:
+            # If not in a git repo, fallback to full index
+            print("[Retriever] Git not available or no HEAD commit. Running full index_workspace...")
+            self.index_workspace()
+            return
+
+        # Check if metadata exists
+        if not os.path.exists(metadata_path):
+            print("[Retriever] No index metadata found. Running full index_workspace...")
+            self.index_workspace()
+            # Save metadata
+            meta = {"last_processed_commit": head}
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+            return
+
+        # Read metadata
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            last_commit = meta.get("last_processed_commit")
+        except Exception:
+            last_commit = None
+
+        if not last_commit:
+            print("[Retriever] Invalid metadata. Running full index_workspace...")
+            self.index_workspace()
+            meta = {"last_processed_commit": head}
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+            return
+
+        if last_commit == head:
+            print("[Retriever] Cache HIT. Workspace index is up-to-date with HEAD.")
+            return
+
+        # Get diff between last_commit and head
+        print(f"[Retriever] Cache MISS. Indexing changes between {last_commit[:7]} and {head[:7]}...")
+        diff_output = run_git_cmd(["git", "diff", "--name-only", last_commit, head])
+        if not diff_output:
+            # No changes in filenames, but let's double check
+            print("[Retriever] No file diff found between commits.")
+            meta = {"last_processed_commit": head}
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+            return
+
+        changed_files = diff_output.splitlines()
+        for fpath in changed_files:
+            fpath = fpath.strip().replace("\\", "/")
+            # Filter by supported extensions
+            ext = os.path.splitext(fpath)[1].lower()
+            if ext in {".py", ".ts", ".js", ".tsx"}:
+                # Exclude virtual environments and temporary directories
+                if any(part in fpath.split("/") for part in {".venv", "node_modules", ".git", ".gemini", ".lancedb"}):
+                    continue
+                
+                full_fpath = os.path.join(self.workspace_path, fpath)
+                if os.path.exists(full_fpath) and not os.path.isdir(full_fpath):
+                    # Added or modified
+                    print(f"[Retriever] Incremental Sync: Re-indexing {fpath}...")
+                    self.index_file(fpath)
+                else:
+                    # Deleted file
+                    print(f"[Retriever] Incremental Sync: Deleting {fpath} from index...")
+                    escaped_path = fpath.replace('"', '\\"')
+                    try:
+                        self.table.delete(f'filepath = "{escaped_path}"')
+                    except Exception:
+                        pass
+
+        # Update metadata
+        meta["last_processed_commit"] = head
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+        print(f"[Retriever] Incremental Sync complete. Updated metadata to HEAD: {head[:7]}")
 
     def retrieve_context(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
