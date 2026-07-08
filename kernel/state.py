@@ -27,6 +27,8 @@ def append_errors(left: List[ErrorEntry], right: List[ErrorEntry]) -> List[Error
         left = []
     if right is None:
         right = []
+    if any(e.message == "__CLEAR__" for e in right):
+        return [e for e in right if e.message != "__CLEAR__"]
     return left + right
 
 def merge_verified(left: List[str], right: List[str]) -> List[str]:

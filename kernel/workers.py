@@ -92,7 +92,8 @@ def coder_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
     return {
         "plan": plan,
         "last_active_worker": "coder",
-        "verified_by": []
+        "verified_by": [],
+        "error_log": [ErrorEntry(timestamp="", step="coder", message="__CLEAR__", traceback="")]
     }
 
 # ----------------------------------------------------
