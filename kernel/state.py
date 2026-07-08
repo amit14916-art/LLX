@@ -42,6 +42,12 @@ def merge_verified(left: List[str], right: List[str]) -> List[str]:
         left = []
     return list(set(left + right))
 
+def pick_last_active(left: Optional[str], right: Optional[str]) -> Optional[str]:
+    """Reducer to select the last active worker, favoring any updated value."""
+    if right is not None:
+        return right
+    return left
+
 class AgentState(TypedDict):
     """
     LangGraph state schema for the autonomous agentic IDE kernel.
@@ -56,5 +62,5 @@ class AgentState(TypedDict):
     current_lint_score: Optional[float]
     critic_status: Optional[str]
     current_task_id: Optional[str]
-    last_active_worker: Optional[str]
+    last_active_worker: Annotated[Optional[str], pick_last_active]
     verified_by: Annotated[List[str], merge_verified]
